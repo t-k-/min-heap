@@ -1,33 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-
-#define HEAP_VAL uint32_t
-#define BOOL uint32_t
-
-typedef HEAP_VAL (*heap_val_fun)(void*);
-
-struct heap {
-	void       **array;
-	uint32_t     size;
-	uint32_t     end;
-	heap_val_fun val;
-};
-
-struct heap heap_create(uint32_t, heap_val_fun);
-void        heap_destory(struct heap*);
-BOOL        heap_full(struct heap*);
-uint32_t    heap_size(struct heap*);
-void        heap_push(struct heap*, void*);
-HEAP_VAL    heap_top_val(struct heap*);
-void        heap_print_tr(struct heap*);
-void        heap_print_arr(struct heap*);
-void        minheap_heapify(struct heap*);
-void        minheap_insert(struct heap*, void*);
-void        minheap_delete(struct heap*, uint32_t);
-void        minheap_sort(struct heap*);
-void        heap_sort_desc(struct heap*);
-void        heap_test(void);
+#include "minheap.h"
 
 #define COL_BEG "\033[1m\033[34m"
 #define COL_END "\033[0m"
@@ -285,10 +258,4 @@ void heap_test()
 	printf(COL_BEG "heap destory...\n" COL_END);
 	heap_print_tr(&heap);
 	heap_destory(&heap);
-}
-
-int main()
-{
-	heap_test();
-	return 0;
 }

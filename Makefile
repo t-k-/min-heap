@@ -8,4 +8,4 @@ test.out: main.o minheap.o
 	gcc $^ -o $@
 
 clean:
-	rm -f *.o *.out
+	rm -f *.o *.out tags

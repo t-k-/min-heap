@@ -1,19 +1,21 @@
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "minheap.h"
 
-#define COL_BEG "\033[1m\033[34m"
-#define COL_END "\033[0m"
-
-struct heap heap_create(uint32_t sz, heap_val_fun fun)
+struct heap heap_create(uint32_t sz)
 {
 	struct heap h;
 	h.array = calloc(sz, sizeof(void*));
 	h.size = sz;
 	h.end = 0;
-	h.val = fun;
+	h.ltf = NULL;
 
 	return h;
+}
+
+void heap_set_callbk(struct heap *h, heap_lt_fun fun)
+{
+	h->ltf = fun;
 }
 
 void heap_destory(struct heap *h)
@@ -36,9 +38,9 @@ void heap_push(struct heap *h, void *ptr)
 	h->array[h->end ++] = ptr;	
 }
 
-HEAP_VAL heap_top_val(struct heap *h)
+void *heap_top(struct heap *h)
 {
-	return h->val(h->array[0]);
+	return h->array[0];
 }
 
 static __inline uint32_t right_son(uint32_t i)
@@ -47,40 +49,41 @@ static __inline uint32_t right_son(uint32_t i)
 }
 
 static 
-void _heap_print_tr(struct heap *h, uint32_t i, uint32_t depth)
+void _heap_print_tr(struct heap *h, uint32_t i, 
+                    uint32_t depth, heap_pr_fun fun)
 {
 	uint32_t j;
-	for (j = 0; j < depth; j++)
-		printf("  ");
-	printf("[%u]:%u\n", i, h->val(h->array[i]));
+	(*fun)(h->array[i], i, depth);
+	printf("\n");
 
 	j = right_son(i);
 	if (j < h->end)
-		_heap_print_tr(h, j, depth + 1);
+		_heap_print_tr(h, j, depth + 1, fun);
 
 	j = j - 1; /* left son */
 	if (j < h->end)
-		_heap_print_tr(h, j, depth + 1);
+		_heap_print_tr(h, j, depth + 1, fun);
 }
 
-void heap_print_tr(struct heap *h)
+void heap_print_tr(struct heap *h, heap_pr_fun fun)
 {
 	if (h->end)
-		_heap_print_tr(h, 0, 0);
+		_heap_print_tr(h, 0, 0, fun);
 }
 
-void heap_print_arr(struct heap *h)
+void heap_print_arr(struct heap *h, heap_pr_fun fun)
 {
 	uint32_t i;
 	for (i = 0; i < h->size; i++) {
 		if (i == h->end)
-			printf("| ");
+			printf("|       ");
 
 		if (NULL == h->array[i])
-			printf("nil ");
+			printf("nil     ");
 		else
-			printf("%u ", h->val(h->array[i]));
+			(*fun)(h->array[i], i, 0);
 	}
+
 	printf("\n");
 }
 
@@ -95,20 +98,16 @@ uint32_t swap(struct heap *h, uint32_t i, uint32_t j)
 static __inline
 uint32_t min_son(struct heap *h, uint32_t i)
 {
-	HEAP_VAL j_val;
 	uint32_t j, min = i; 
 	
 	j = right_son(i);
-	if (j < h->end) {
-		j_val = h->val(h->array[j]);
-		if (h->val(h->array[min]) > j_val)
+	if (j < h->end)
+		if ((*h->ltf)(h->array[j], h->array[min]))
 			min = j;
-	}
 	
 	j = j - 1; /* left son */
 	if (j < h->end) {
-		j_val = h->val(h->array[j]);
-		if (h->val(h->array[min]) > j_val)
+		if ((*h->ltf)(h->array[j], h->array[min]))
 			min = j;
 	}
 
@@ -177,85 +176,8 @@ void minheap_insert(struct heap *h, void *ptr)
 	while (i) {
 		/* shift up... */
 		j = (i - 1) >> 1; /* father */
-		if (h->val(h->array[j]) > h->val(h->array[i]))
+		if ((*h->ltf)(h->array[i], h->array[j]))
 			swap(h, i, j);
 		i = j;
 	}
-}
-
-/* test */
-static HEAP_VAL heap_test_callbk(void *ptr)
-{
-	return *((uint32_t*)ptr);
-}
-
-void heap_test()
-{
-	uint32_t cnt, i, data[] = 
-	                    {14, 2, 22, 13, 23, 10, 90, 36, 108, 12,
-	                      9, 91, 1, 51, 11, 3, 15, 80, 3, 78, 53,
-	                      5, 12, 21, 65, 70, 4};
-	const uint32_t data_len = sizeof(data)/sizeof(uint32_t);
-	struct heap heap = heap_create(32, &heap_test_callbk);
-
-	printf(COL_BEG "push data...\n" COL_END);
-	for (i = 0; i < data_len; i++)
-		if (!heap_full(&heap))
-			heap_push(&heap, &data[i]);
-
-	printf("data len = %u, heap size = %u.\n", data_len, 
-	       heap_size(&heap));
-
-	printf(COL_BEG "heap tree:\n" COL_END);
-	heap_print_tr(&heap);
-
-	printf(COL_BEG "heap array:\n" COL_END);
-	heap_print_arr(&heap);
-
-	printf(COL_BEG "after heapify:\n" COL_END);
-	minheap_heapify(&heap);
-	heap_print_tr(&heap);
-
-	cnt = 0;
-	printf(COL_BEG "ranking emulation...:\n" COL_END);
-	while (cnt < 100) {
-		i = (i + 1) % data_len;
-		if (!heap_full(&heap)) {
-			printf("insert %d\n", data[i]);
-			minheap_insert(&heap, &data[i]);
-		} else {
-			HEAP_VAL val = heap_top_val(&heap);
-			if (val < data[i]) {
-				printf("replace %d with %d\n", val, data[i]);
-				minheap_delete(&heap, 0);
-				minheap_insert(&heap, &data[i]);
-			}
-		}
-		cnt ++;
-	}
-
-	printf(COL_BEG "a heavy heap tree now:\n" COL_END);
-	heap_print_tr(&heap);
-
-	minheap_sort(&heap);
-	printf(COL_BEG "heap array after min-heap sort:\n" COL_END);
-	heap_print_arr(&heap);
-
-	printf(COL_BEG "a new heap...\n" COL_END);
-	heap_destory(&heap);
-	heap = heap_create(32, &heap_test_callbk);
-	for (i = 0; i < data_len; i++)
-		if (!heap_full(&heap))
-			heap_push(&heap, &data[i]);
-	
-	printf(COL_BEG "heap array:\n" COL_END);
-	heap_print_arr(&heap);
-
-	heap_sort_desc(&heap);
-	printf(COL_BEG "heap array after heap sort:\n" COL_END);
-	heap_print_arr(&heap);
-
-	printf(COL_BEG "heap destory...\n" COL_END);
-	heap_print_tr(&heap);
-	heap_destory(&heap);
 }

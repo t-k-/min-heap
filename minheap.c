@@ -133,9 +133,14 @@ void min_shift_down(struct heap *h, uint32_t i)
 
 void minheap_heapify(struct heap *h)
 {
-	uint32_t i = (h->end >> 1) - 1;
-	/* for each i that is non-leaf */
+	uint32_t i = h->end >> 1;
 
+	if (i) 
+		i --;
+	else 
+		return;
+
+	/* for each i that is non-leaf */
 	while (1) {
 		min_shift_down(h, i);
 
